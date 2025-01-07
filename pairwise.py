@@ -68,60 +68,18 @@ def output_row(query, product_lhs, product_rhs, human_preference, agent_preferen
     }
 
 
-def eval(eval_fn=eval_agent.decide_ensemble, assert_on_diff=True):
-    df = pairwise_df()
-    same_preference = 0
-    different_preference = 0
-    func_name = eval_fn.__name__
-    results_df = pd.DataFrame()
-    try:
-        results_df = pd.read_pickle(f'data/{func_name}.pkl')
-        same_preference = len(results_df[results_df['human_preference'] == results_df['agent_preference']])
-        different_preference = len(results_df[results_df['human_preference'] != results_df['agent_preference']])
-    except FileNotFoundError:
-        pass
-    for idx, row in df.iterrows():
-        query = row['query_x']
-        product_lhs = product_row_to_dict(row[['product_name_x', 'product_description_x',
-                                               'product_class_x',
-                                               'product_id_x', 'category hierarchy_x', 'grade_x']])
-        product_rhs = product_row_to_dict(row[['product_name_y', 'product_description_y',
-                                               'product_class_y',
-                                               'product_id_y', 'category hierarchy_y', 'grade_y']])
-        result_exists = len(results_df) > 0 and (results_df[(results_df['query'] == query) &
-                                                            (results_df['product_id_lhs'] == product_lhs['id']) &
-                                                            (results_df['product_id_rhs'] == product_rhs['id'])].shape[0] > 0)
-        if result_exists:
-            print(f"Already rated query: {query}, product_lhs: {product_lhs['name']}, product_rhs: {product_rhs['name']}")
-            print("Skipping")
-            continue
-        human_preference = product_lhs['grade'] - product_rhs['grade']
-        if human_preference > 0:
-            human_preference = 'LHS'
-        elif human_preference < 0:
-            human_preference = 'RHS'
-        else:
-            human_preference = 'Neither'
+def human_pref(query, product_lhs, product_rhs):
+    human_preference = product_lhs['grade'] - product_rhs['grade']
+    print(f"Grade LHS: {product_lhs['grade']}, Grade RHS: {product_rhs['grade']}")
+    if human_preference > 0:
+        return 'LHS'
+    elif human_preference < 0:
+        return 'RHS'
+    else:
+        return 'Neither'
 
-        agent_preference = eval_fn(query, product_lhs, product_rhs)
-        print(f"Grade LHS: {product_lhs['grade']}, Grade RHS: {product_rhs['grade']}")
-        print(f"Human Preference: {human_preference}, Agent Preference: {agent_preference}")
 
-        results_df = pd.concat([results_df, pd.DataFrame([output_row(query, product_lhs, product_rhs, human_preference,
-                                                                     agent_preference)])])
-        same_preference = len(results_df[results_df['human_preference'] == results_df['agent_preference']]) if (
-                len(results_df) > 0) else 0
-        no_preference = len(results_df[results_df['agent_preference'] == 'Neither']) if (len(results_df) > 0) else 0
-        different_preference = len(results_df[(results_df['human_preference'] != results_df['agent_preference']) & (
-                results_df['human_preference'] != 'Neither') & (results_df['agent_preference'] != 'Neither')]) if (
-                len(results_df) > 0) else 0
-        print(f"Same Preference: {same_preference}, Different Preference: {different_preference}, No Preference: {no_preference}")
-        if agent_preference != human_preference and agent_preference != 'Neither' and human_preference != 'Neither':
-            print("DIFFERENT PREFERENCE")
-        if (same_preference + different_preference) > 0:
-            print(f"Percentage same preference: {same_preference / (same_preference + different_preference) * 100}%")
-
-        results_df.to_pickle(f'data/{func_name}.pkl')
+def results_df_stats(results_df):
     same_preference = len(results_df[results_df['human_preference'] == results_df['agent_preference']]) if (
             len(results_df) > 0) else 0
     no_preference = len(results_df[results_df['agent_preference'] == 'Neither']) if (len(results_df) > 0) else 0
@@ -131,6 +89,46 @@ def eval(eval_fn=eval_agent.decide_ensemble, assert_on_diff=True):
     print(f"Same Preference: {same_preference}, Different Preference: {different_preference}, No Preference: {no_preference}")
     if (same_preference + different_preference) > 0:
         print(f"Percentage same preference: {same_preference / (same_preference + different_preference) * 100}%")
+
+
+def has_been_labeled(results_df, query, product_lhs, product_rhs):
+    result_exists = len(results_df) > 0 and (results_df[(results_df['query'] == query) &
+                                                        (results_df['product_id_lhs'] == product_lhs['id']) &
+                                                        (results_df['product_id_rhs'] == product_rhs['id'])].shape[0] > 0)
+    return result_exists
+
+
+def eval(eval_fn=eval_agent.decide_ensemble, assert_on_diff=True):
+    df = pairwise_df()
+    func_name = eval_fn.__name__
+    results_df = pd.DataFrame()
+    try:
+        results_df = pd.read_pickle(f'data/{func_name}.pkl')
+    except FileNotFoundError:
+        pass
+
+    for idx, row in df.iterrows():
+        query = row['query_x']
+        product_lhs = product_row_to_dict(row[['product_name_x', 'product_description_x',
+                                               'product_class_x',
+                                               'product_id_x', 'category hierarchy_x', 'grade_x']])
+        product_rhs = product_row_to_dict(row[['product_name_y', 'product_description_y',
+                                               'product_class_y',
+                                               'product_id_y', 'category hierarchy_y', 'grade_y']])
+        if has_been_labeled(results_df, query, product_lhs, product_rhs):
+            print(f"Already rated query: {query}, product_lhs: {product_lhs['name']}, product_rhs: {product_rhs['name']}")
+            print("Skipping")
+            continue
+        human_preference = human_pref(query, product_lhs, product_rhs)
+        agent_preference = eval_fn(query, product_lhs, product_rhs)
+        print(f"Human Preference: {human_preference}, Agent Preference: {agent_preference}")
+
+        results_df = pd.concat([results_df, pd.DataFrame([output_row(query, product_lhs, product_rhs, human_preference,
+                                                                     agent_preference)])])
+        results_df_stats(results_df)
+
+        results_df.to_pickle(f'data/{func_name}.pkl')
+    results_df_stats(results_df)
 
 
 
