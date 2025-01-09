@@ -63,14 +63,14 @@ def describe_and_decide(query, product_lhs, product_rhs):
     return decide(query, product_lhs, product_rhs, pros_lhs, pros_rhs)[0]
 
 
-def decide_just_title(query, product_lhs, product_rhs):
+def title(query, product_lhs, product_rhs):
     instruction = f"""
         Which of these products is more relevant to the furniture e-commerce search query:
 
         Query: {query}
 
         Product LHS: {product_lhs['name']}
-        Propduct RHS: {product_rhs['name']}
+        Product RHS: {product_rhs['name']}
 
         Respond with just 'LHS' or 'RHS'
     """
@@ -78,7 +78,7 @@ def decide_just_title(query, product_lhs, product_rhs):
     return parse_decision(response)
 
 
-def decide_title_allow_neither(query, product_lhs, product_rhs):
+def title_allow_neither(query, product_lhs, product_rhs):
     if product_lhs['name'] == product_rhs['name']:
         return 'Neither'
     instruction = f"""
@@ -91,7 +91,7 @@ def decide_title_allow_neither(query, product_lhs, product_rhs):
         Product LHS name: {product_lhs['name']}
             (remaining product attributes omited)
         Or
-        Propduct RHS name: {product_rhs['name']}
+        Product RHS name: {product_rhs['name']}
             (remaining product attributes omited)
         Or
         Neither / Need more product attributes
@@ -104,7 +104,35 @@ def decide_title_allow_neither(query, product_lhs, product_rhs):
     return parse_decision(response)
 
 
-def decide_class_allow_neither(query, product_lhs, product_rhs):
+def title_w_desc_allow_neither(query, product_lhs, product_rhs):
+    if product_lhs['name'] == product_rhs['name']:
+        return 'Neither'
+    instruction = f"""
+        Neither product is more relevant to the query, unless given compelling evidence.
+
+        Which of these product names (if either) is more relevant to the furniture e-commerce search query:
+
+        Query: {query}
+
+        Product LHS name: {product_lhs['name']}
+        Product LHS description: {product_lhs['description']}
+            (remaining product attributes omited)
+        Or
+        Product RHS name: {product_rhs['name']}
+        Product RHS description: {product_rhs['description']}
+            (remaining product attributes omited)
+        Or
+        Neither / Need more product attributes
+
+        Only respond 'LHS' or 'RHS' if you are confident in your decision
+
+        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident' with no other text. Respond 'Neither' if not enough evidence.
+    """
+    response = pv.generate(instruction)
+    return parse_decision(response)
+
+
+def class_allow_neither(query, product_lhs, product_rhs):
     if product_lhs['class'] == product_rhs['class']:
         return 'Neither'
 
@@ -118,7 +146,7 @@ def decide_class_allow_neither(query, product_lhs, product_rhs):
         Product LHS class: {product_lhs['class']}
             (remaining product attributes omited)
         Or
-        Propduct RHS class: {product_rhs['class']}
+        Product RHS class: {product_rhs['class']}
             (remaining product attributes omited)
         Or
         Neither / Need more product attributes
@@ -131,7 +159,7 @@ def decide_class_allow_neither(query, product_lhs, product_rhs):
     return parse_decision(response)
 
 
-def decide_category_allow_neither(query, product_lhs, product_rhs):
+def category_allow_neither(query, product_lhs, product_rhs):
     if product_lhs['category_hierarchy'] == product_rhs['category_hierarchy']:
         return 'Neither'
 
@@ -145,7 +173,7 @@ def decide_category_allow_neither(query, product_lhs, product_rhs):
         Product LHS category hierarchy: {product_lhs['category_hierarchy']}
             (remaining product attributes omited)
         Or
-        Propduct RHS category hierarchy: {product_rhs['category_hierarchy']}
+        Product RHS category hierarchy: {product_rhs['category_hierarchy']}
             (remaining product attributes omited)
         Or
         Neither / Need more product attributes
@@ -158,7 +186,7 @@ def decide_category_allow_neither(query, product_lhs, product_rhs):
     return parse_decision(response)
 
 
-def decide_desc_allow_neither(query, product_lhs, product_rhs):
+def desc_allow_neither(query, product_lhs, product_rhs):
     instruction = f"""
         Neither product is more relevant to the query, unless given compelling evidence.
 
@@ -169,7 +197,7 @@ def decide_desc_allow_neither(query, product_lhs, product_rhs):
         Product LHS description: {product_lhs['description']}
             (remaining product attributes omited)
         Or
-        Propduct RHS description: {product_rhs['description']}
+        Product RHS description: {product_rhs['description']}
             (remaining product attributes omited)
         Or
         Neither / Need more product attributes
@@ -182,12 +210,12 @@ def decide_desc_allow_neither(query, product_lhs, product_rhs):
     return parse_decision(response)
 
 
-def decide_ensemble(query, product_lhs, product_rhs):
+def run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns):
     num_lhs = 0
     num_rhs = 0
     num_neither = 0
-    decision_fns = [decide_title_allow_neither, decide_class_allow_neither,
-                    decide_category_allow_neither, decide_desc_allow_neither]
+    # Present left as right, right as left
+    # to deal with any weird biases for one or the other
     for decision_fn in decision_fns:
         decision = decision_fn(query, product_lhs, product_rhs)
         if decision == 'LHS':
@@ -218,7 +246,22 @@ def decide_ensemble(query, product_lhs, product_rhs):
         return 'Neither'
 
 
-def decide_just_title_allow_neither2(query, product_lhs, product_rhs):
+def unanimous_ensemble_title(query, product_lhs, product_rhs):
+    decision_fns = [title_allow_neither]
+    return run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns)
+
+
+def unanimous_ensemble_title_desc(query, product_lhs, product_rhs):
+    decision_fns = [title_allow_neither, desc_allow_neither]
+    return run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns)
+
+
+def unanimous_ensemble_title_w_desc(query, product_lhs, product_rhs):
+    decision_fns = [title_w_desc_allow_neither]
+    return run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns)
+
+
+def title_allow_neither2(query, product_lhs, product_rhs):
     instruction = f"""
         Youre playing a game. Youre evaluating the relevance of a product to a search query.
 
@@ -234,7 +277,7 @@ def decide_just_title_allow_neither2(query, product_lhs, product_rhs):
         Product LHS name: {product_lhs['name']}
             (remaining product attributes omited)
         Or
-        Propduct RHS name: {product_rhs['name']}
+        Product RHS name: {product_rhs['name']}
             (remaining product attributes omited)
         Or
         I dont know
@@ -247,7 +290,7 @@ def decide_just_title_allow_neither2(query, product_lhs, product_rhs):
     return parse_decision(response)
 
 
-def decide_just_title_cot(query, product_lhs, product_rhs):
+def title_cot(query, product_lhs, product_rhs):
     if not query:
         raise ValueError("Query cannot be empty")
     instruction = f"""
@@ -265,7 +308,7 @@ def decide_just_title_cot(query, product_lhs, product_rhs):
     return parse_decision(response)
 
 
-def decide_just_title_cot2(query, product_lhs, product_rhs):
+def title_cot2(query, product_lhs, product_rhs):
     if not query:
         raise ValueError("Query cannot be empty")
     instruction = f"""
@@ -286,7 +329,7 @@ def decide_just_title_cot2(query, product_lhs, product_rhs):
     return parse_decision(response)
 
 
-def decide_all_cot(query, product_lhs, product_rhs):
+def all_cot(query, product_lhs, product_rhs):
     if not query:
         raise ValueError("Query cannot be empty")
     instruction = f"""
@@ -310,3 +353,21 @@ def decide_all_cot(query, product_lhs, product_rhs):
     """
     response = pv.generate(instruction)
     return parse_decision(response)
+
+
+def all_fns():
+    return [
+        title,
+        title_allow_neither2,
+        title_cot,
+        title_cot2,
+        all_cot,
+        unanimous_ensemble_title,
+        unanimous_ensemble_title_desc,
+        unanimous_ensemble_title_w_desc,
+        title_allow_neither,
+        title_w_desc_allow_neither,
+        class_allow_neither,
+        category_allow_neither,
+        desc_allow_neither
+    ]

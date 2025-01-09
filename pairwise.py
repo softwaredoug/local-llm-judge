@@ -1,8 +1,25 @@
 import pandas as pd
 import eval_agent
+import argparse
 
 
-def pairwise_df(n=250):
+def parse_args():
+    # List all functions in eval_agent
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--eval-fn', type=str, default='unanimous_ensemble_title_desc')
+    parser.add_argument('--N', type=int, default=250)
+    args = parser.parse_args()
+    all_fns = eval_agent.all_fns()
+    # Funcs to string
+    all_fns = [fn.__name__ for fn in all_fns]
+    if args.eval_fn not in all_fns:
+        print(f"Invalid function name. Available functions: {all_fns}")
+        exit(1)
+    args.eval_fn = eval_agent.__dict__[args.eval_fn]
+    return args
+
+
+def pairwise_df(n):
     products = pd.read_csv('data/WANDS/dataset/product.csv', delimiter='\t')
     queries = pd.read_csv('data/WANDS/dataset/query.csv', delimiter='\t')
     labels = pd.read_csv('data/WANDS/dataset/label.csv', delimiter='\t')
@@ -13,10 +30,12 @@ def pairwise_df(n=250):
     labels = labels.merge(products, how='left', on='product_id')
 
     # Sample n rows
-    labels = labels.sample(n * 10, random_state=42)
+    labels = labels.sample(10000, random_state=42)
 
     # Get pairwise
     pairwise = labels.merge(labels, on='query_id')
+    # Shuffle completely, otherwise they're somewhat sorted on query
+    pairwise = pairwise.sample(frac=1, random_state=42)
 
     # Drop same id
     pairwise = pairwise[pairwise['product_id_x'] != pairwise['product_id_y']]
@@ -24,7 +43,8 @@ def pairwise_df(n=250):
     # Drop same rating
     pairwise = pairwise[pairwise['label_x'] != pairwise['label_y']]
 
-    return pairwise.sample(n, random_state=42)
+    assert n <= len(pairwise), f"Only {len(pairwise)} rows available"
+    return pairwise.head(n)
 
 
 def product_row_to_dict(row):
@@ -98,8 +118,8 @@ def has_been_labeled(results_df, query, product_lhs, product_rhs):
     return result_exists
 
 
-def eval(eval_fn=eval_agent.decide_ensemble, assert_on_diff=True):
-    df = pairwise_df()
+def eval(eval_fn=eval_agent.unanimous_ensemble_title_desc, N=250):
+    df = pairwise_df(N)
     func_name = eval_fn.__name__
     results_df = pd.DataFrame()
     try:
@@ -133,4 +153,5 @@ def eval(eval_fn=eval_agent.decide_ensemble, assert_on_diff=True):
 
 
 if __name__ == '__main__':
-    eval()
+    args = parse_args()
+    eval(args.eval_fn, args.N)
