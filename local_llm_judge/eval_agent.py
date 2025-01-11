@@ -1,4 +1,8 @@
 import phi_3_vision_mlx as pv
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 def describe(query, product):
@@ -23,7 +27,7 @@ def describe(query, product):
     return pros_cons['responses']
 
 
-def parse_decision(response):
+def _parse_decision(response):
     decision = response.split("\n")[-1]
     if 'LHS' in decision and 'RHS' not in decision:
         return 'LHS'
@@ -45,7 +49,7 @@ def decide(query, product_lhs, product_rhs, pros_lhs, pros_rhs):
         f"Step by step, describe the information need behind the query: {query}",
         f"Now step-by-step describe which product (LHS or RHS) is more relevant to the query: {query}"
         f"Finally, conclude the last line with the product that is more relevant to the query.",
-        "IMPORTANT for parsing, in addition, finish with a single line with either simply 'LHS' or 'RHS' with your decision."
+        "IMPORTANT for parsing, in addition, finish with a single line with either simply 'LHS' or 'RHS' with your decision."  # noqa
     ]
     response = pv.generate("\n\n".join(instruction))
     decision = response.split("\n")[-1]
@@ -63,7 +67,7 @@ def describe_and_decide(query, product_lhs, product_rhs):
     return decide(query, product_lhs, product_rhs, pros_lhs, pros_rhs)[0]
 
 
-def title(query, product_lhs, product_rhs):
+def name(query, product_lhs, product_rhs):
     instruction = f"""
         Which of these products is more relevant to the furniture e-commerce search query:
 
@@ -75,10 +79,10 @@ def title(query, product_lhs, product_rhs):
         Respond with just 'LHS' or 'RHS'
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
 
 
-def title_allow_neither(query, product_lhs, product_rhs):
+def name_allow_neither(query, product_lhs, product_rhs):
     if product_lhs['name'] == product_rhs['name']:
         return 'Neither'
     instruction = f"""
@@ -98,13 +102,14 @@ def title_allow_neither(query, product_lhs, product_rhs):
 
         Only respond 'LHS' or 'RHS' if you are confident in your decision
 
-        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident' with no other text. Respond 'Neither' if not enough evidence.
+        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
+        with no other text. Respond 'Neither' if not enough evidence.
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
 
 
-def title_w_desc_allow_neither(query, product_lhs, product_rhs):
+def name_w_desc_allow_neither(query, product_lhs, product_rhs):
     if product_lhs['name'] == product_rhs['name']:
         return 'Neither'
     instruction = f"""
@@ -126,10 +131,11 @@ def title_w_desc_allow_neither(query, product_lhs, product_rhs):
 
         Only respond 'LHS' or 'RHS' if you are confident in your decision
 
-        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident' with no other text. Respond 'Neither' if not enough evidence.
+        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
+        with no other text. Respond 'Neither' if not enough evidence.
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
 
 
 def class_allow_neither(query, product_lhs, product_rhs):
@@ -153,10 +159,11 @@ def class_allow_neither(query, product_lhs, product_rhs):
 
         Only respond 'LHS' or 'RHS' if you are confident in your decision
 
-        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident' with no other text. Respond 'Neither' if not enough evidence.
+        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
+        with no other text. Respond 'Neither' if not enough evidence.
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
 
 
 def category_allow_neither(query, product_lhs, product_rhs):
@@ -180,10 +187,11 @@ def category_allow_neither(query, product_lhs, product_rhs):
 
         Only respond 'LHS' or 'RHS' if you are confident in your decision
 
-        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident' with no other text. Respond 'Neither' if not enough evidence.
+        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
+        with no other text. Respond 'Neither' if not enough evidence.
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
 
 
 def desc_allow_neither(query, product_lhs, product_rhs):
@@ -204,10 +212,11 @@ def desc_allow_neither(query, product_lhs, product_rhs):
 
         Only respond 'LHS' or 'RHS' if you are confident in your decision
 
-        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident' with no other text. Respond 'Neither' if not enough evidence.
+        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
+        with no other text. Respond 'Neither' if not enough evidence.
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
 
 
 def run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns):
@@ -234,8 +243,8 @@ def run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns):
             num_neither += 1
         total_decisions = num_lhs + num_rhs + num_neither
 
-    print("Ensemble Complete")
-    print(f"num_lhs: {num_lhs}, num_rhs: {num_rhs}, num_neither: {num_neither}")
+    logger.info("Ensemble Complete")
+    logger.info(f"num_lhs: {num_lhs}, num_rhs: {num_rhs}, num_neither: {num_neither}")
 
     total_decisions = num_lhs + num_rhs + num_neither
     if num_lhs == total_decisions:
@@ -246,22 +255,22 @@ def run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns):
         return 'Neither'
 
 
-def unanimous_ensemble_title(query, product_lhs, product_rhs):
-    decision_fns = [title_allow_neither]
+def unanimous_ensemble_name(query, product_lhs, product_rhs):
+    decision_fns = [name_allow_neither]
     return run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns)
 
 
-def unanimous_ensemble_title_desc(query, product_lhs, product_rhs):
-    decision_fns = [title_allow_neither, desc_allow_neither]
+def unanimous_ensemble_name_desc(query, product_lhs, product_rhs):
+    decision_fns = [name_allow_neither, desc_allow_neither]
     return run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns)
 
 
-def unanimous_ensemble_title_w_desc(query, product_lhs, product_rhs):
-    decision_fns = [title_w_desc_allow_neither]
+def unanimous_ensemble_name_w_desc(query, product_lhs, product_rhs):
+    decision_fns = [name_w_desc_allow_neither]
     return run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns)
 
 
-def title_allow_neither2(query, product_lhs, product_rhs):
+def name_allow_neither2(query, product_lhs, product_rhs):
     instruction = f"""
         Youre playing a game. Youre evaluating the relevance of a product to a search query.
 
@@ -287,10 +296,10 @@ def title_allow_neither2(query, product_lhs, product_rhs):
         To play respond with just 'LHS', 'RHS', or 'I dont know' with no other text.
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
 
 
-def title_cot(query, product_lhs, product_rhs):
+def name_cot(query, product_lhs, product_rhs):
     if not query:
         raise ValueError("Query cannot be empty")
     instruction = f"""
@@ -305,10 +314,10 @@ def title_cot(query, product_lhs, product_rhs):
         indicating the most relevant product, with no other text for easier parsing.
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
 
 
-def title_cot2(query, product_lhs, product_rhs):
+def name_cot2(query, product_lhs, product_rhs):
     if not query:
         raise ValueError("Query cannot be empty")
     instruction = f"""
@@ -326,7 +335,7 @@ def title_cot2(query, product_lhs, product_rhs):
         indicating the most relevant product, with no other text for easier parsing.
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
 
 
 def all_cot(query, product_lhs, product_rhs):
@@ -352,21 +361,42 @@ def all_cot(query, product_lhs, product_rhs):
         placing 'LHS' or 'RHS' on the last line.
     """
     response = pv.generate(instruction)
-    return parse_decision(response)
+    return _parse_decision(response)
+
+
+def enough_information_name(query, product_lhs, product_rhs):
+    instruction = """
+        Is there enough information in the product name to make a decision on which product is more relevant to the query?
+
+            Query: {query}
+
+            Product Name LHS: {product_lhs['name']}
+            Product Name RHS: {product_rhs['name']}
+
+        Respond with just 'Yes' or 'No'
+    """
+    response = pv.generate(instruction)
+    return 'yes' in response.split("\n")[-1].lower()
+
+
+def title_two_stage(query, product_lhs, product_rhs):
+    if not enough_information_name(query, product_lhs, product_rhs):
+        return 'Neither'
+    return name(query, product_lhs, product_rhs)
 
 
 def all_fns():
     return [
-        title,
-        title_allow_neither2,
-        title_cot,
-        title_cot2,
+        name,
+        name_allow_neither2,
+        name_cot,
+        name_cot2,
         all_cot,
-        unanimous_ensemble_title,
-        unanimous_ensemble_title_desc,
-        unanimous_ensemble_title_w_desc,
-        title_allow_neither,
-        title_w_desc_allow_neither,
+        unanimous_ensemble_name,
+        unanimous_ensemble_name_desc,
+        unanimous_ensemble_name_w_desc,
+        name_allow_neither,
+        name_w_desc_allow_neither,
         class_allow_neither,
         category_allow_neither,
         desc_allow_neither
