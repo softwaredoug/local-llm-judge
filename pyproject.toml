@@ -10,6 +10,7 @@ python = "^3.12.3"
 pandas = "^2.2.3"
 mlx = "^0.22.0"
 mlx-lm = "^0.21.0"
+prompt-toolkit = "^3.0.48"
 
 
 [build-system]

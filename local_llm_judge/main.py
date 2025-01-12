@@ -3,6 +3,7 @@ import logging
 import os
 
 import pandas as pd
+from prompt_toolkit.history import FileHistory
 
 import local_llm_judge.eval_agent as eval_agent
 from local_llm_judge.log_stdout import enable
@@ -18,6 +19,7 @@ def parse_args():
     parser.add_argument('--N', type=int, default=250)
     parser.add_argument('--verbose', action='store_true')
     parser.add_argument('--destroy-cache', action='store_true', default=False)
+    parser.add_argument('--llm-histroy', type=str, default=".llm_shell_history")
     args = parser.parse_args()
     all_fns = eval_agent.all_fns()
     # Funcs to string
@@ -27,6 +29,7 @@ def parse_args():
         exit(1)
     args.eval_fn = eval_agent.__dict__[args.eval_fn]
     if args.verbose:
+        enable("local_llm_judge")
         enable(__name__)
     return args
 
@@ -96,8 +99,7 @@ def results_df_stats(results_df):
     if (same_preference + different_preference) > 0:
         precision = same_preference / (same_preference + different_preference) * 100
         recall = agent_has_preference / len(results_df) * 100
-        f1 = 2 * precision * recall / (precision + recall)
-        logger.info(f"Precision: {precision}% | Recall: {recall}% | F1: {f1}")
+        logger.info(f"Precision: {precision:.2f}% | Recall: {recall:.2f}% (N={len(results_df)})")
 
 
 def has_been_labeled(results_df, query, product_lhs, product_rhs):
@@ -108,7 +110,13 @@ def has_been_labeled(results_df, query, product_lhs, product_rhs):
     return result_exists
 
 
-def main(eval_fn=eval_agent.unanimous_ensemble_name_desc, N=250, destroy_cache=False):
+def main(eval_fn=eval_agent.unanimous_ensemble_name_desc,
+         N=250,
+         destroy_cache=False,
+         history_path=".llm_shell_history"):
+    if history_path:
+        eval_agent.qwen.history = FileHistory(history_path)
+
     df = pairwise_df(N)
     func_name = eval_fn.__name__
     results_df = pd.DataFrame()
@@ -148,4 +156,4 @@ def main(eval_fn=eval_agent.unanimous_ensemble_name_desc, N=250, destroy_cache=F
 
 if __name__ == '__main__':
     args = parse_args()
-    main(args.eval_fn, args.N)
+    main(args.eval_fn, args.N, args.destroy_cache)

@@ -11,9 +11,21 @@ qwen = Qwen()
 def generate(prompt, system=None):
     msgs = [{"role": "user", "content": prompt}]
     if not system:
-        system = "You are Qwen, created by Alibaba Cloud. You are a helping evaluate search relevance."
+        system = "You are a helpful assistant evaluating search relevance of furniture products."
         msgs = [{"role": "system", "content": system}] + msgs
-    return qwen(msgs)
+
+    response = qwen(msgs)
+    log_str = f"""Generating response with the following messages:
+
+    System: {system}
+
+    Prompt: {prompt}
+
+    Response: {response}
+
+    """
+    logger.debug(log_str)
+    return response
 
 
 def describe(query, product):
@@ -133,7 +145,8 @@ def name_allow_neither(query, product_lhs, product_rhs):
         with no other text. Respond 'Neither' if not enough evidence.
     """
     response = generate(instruction)
-    return _parse_decision(response)
+    decision = _parse_decision(response)
+    return decision
 
 
 def name_w_desc_allow_neither(query, product_lhs, product_rhs):
