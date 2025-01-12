@@ -1,6 +1,8 @@
-import pandas as pd
 import argparse
 import logging
+import os
+
+import pandas as pd
 
 import local_llm_judge.eval_agent as eval_agent
 from local_llm_judge.log_stdout import enable
@@ -15,6 +17,7 @@ def parse_args():
     parser.add_argument('--eval-fn', type=str, default='unanimous_ensemble_name_desc')
     parser.add_argument('--N', type=int, default=250)
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--destroy-cache', action='store_true', default=False)
     args = parser.parse_args()
     all_fns = eval_agent.all_fns()
     # Funcs to string
@@ -81,6 +84,7 @@ def human_pref(query, product_lhs, product_rhs):
 
 
 def results_df_stats(results_df):
+    agent_has_preference = len(results_df[results_df['agent_preference'] != 'Neither']) if (len(results_df) > 0) else 0
     same_preference = len(results_df[results_df['human_preference'] == results_df['agent_preference']]) if (
             len(results_df) > 0) else 0
     no_preference = len(results_df[results_df['agent_preference'] == 'Neither']) if (len(results_df) > 0) else 0
@@ -90,7 +94,10 @@ def results_df_stats(results_df):
     logger.info(f"Same Preference: {same_preference}," +
                 f" Different Preference: {different_preference}, No Preference: {no_preference}")
     if (same_preference + different_preference) > 0:
-        logger.info(f"Percentage same preference: {same_preference / (same_preference + different_preference) * 100}%")
+        precision = same_preference / (same_preference + different_preference) * 100
+        recall = agent_has_preference / len(results_df) * 100
+        f1 = 2 * precision * recall / (precision + recall)
+        logger.info(f"Precision: {precision}% | Recall: {recall}% | F1: {f1}")
 
 
 def has_been_labeled(results_df, query, product_lhs, product_rhs):
@@ -101,10 +108,12 @@ def has_been_labeled(results_df, query, product_lhs, product_rhs):
     return result_exists
 
 
-def main(eval_fn=eval_agent.unanimous_ensemble_name_desc, N=250):
+def main(eval_fn=eval_agent.unanimous_ensemble_name_desc, N=250, destroy_cache=False):
     df = pairwise_df(N)
     func_name = eval_fn.__name__
     results_df = pd.DataFrame()
+    if destroy_cache and os.path.exists(f'data/{func_name}.pkl'):
+        os.remove(f'data/{func_name}.pkl')
     try:
         results_df = pd.read_pickle(f'data/{func_name}.pkl')
     except FileNotFoundError:
@@ -125,6 +134,8 @@ def main(eval_fn=eval_agent.unanimous_ensemble_name_desc, N=250):
             continue
         human_preference = human_pref(query, product_lhs, product_rhs)
         agent_preference = eval_fn(query, product_lhs, product_rhs)
+        if agent_preference != 'Neither' and human_preference != agent_preference:
+            logger.warning(f"Disagreement - Human Preference: {human_preference}, Agent Preference: {agent_preference}")
         logger.info(f"Human Preference: {human_preference}, Agent Preference: {agent_preference}")
 
         results_df = pd.concat([results_df, pd.DataFrame([output_row(query, product_lhs, product_rhs, human_preference,

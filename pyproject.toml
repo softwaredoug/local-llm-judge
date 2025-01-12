@@ -7,8 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12.3"
-phi-3-vision-mlx = "^0.1.5"
 pandas = "^2.2.3"
+mlx = "^0.22.0"
+mlx-lm = "^0.21.0"
 
 
 [build-system]

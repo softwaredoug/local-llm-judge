@@ -1,13 +1,24 @@
-import phi_3_vision_mlx as pv
 import logging
+
+from local_llm_judge.qwen import Qwen, Agent
 
 
 logger = logging.getLogger(__name__)
 
+qwen = Qwen()
+
+
+def generate(prompt, system=None):
+    msgs = [{"role": "user", "content": prompt}]
+    if not system:
+        system = "You are Qwen, created by Alibaba Cloud. You are a helping evaluate search relevance."
+        msgs = [{"role": "system", "content": system}] + msgs
+    return qwen(msgs)
+
 
 def describe(query, product):
 
-    agent = pv.Agent(quantize_model=True, quantize_cache=True)
+    agent = Agent(qwen)
 
     agent("Step by step, describe the information need behind the query: " + query)
 
@@ -23,8 +34,7 @@ def describe(query, product):
     """
 
     pros_cons = agent(product_prompt)
-    agent.end()
-    return pros_cons['responses']
+    return pros_cons
 
 
 def _parse_decision(response):
@@ -51,7 +61,7 @@ def decide(query, product_lhs, product_rhs, pros_lhs, pros_rhs):
         f"Finally, conclude the last line with the product that is more relevant to the query.",
         "IMPORTANT for parsing, in addition, finish with a single line with either simply 'LHS' or 'RHS' with your decision."  # noqa
     ]
-    response = pv.generate("\n\n".join(instruction))
+    response = generate("\n\n".join(instruction))
     decision = response.split("\n")[-1]
     if 'LHS' in decision:
         return 'LHS', response
@@ -78,7 +88,24 @@ def name(query, product_lhs, product_rhs):
 
         Respond with just 'LHS' or 'RHS'
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
+    return _parse_decision(response)
+
+
+def name_description(query, product_lhs, product_rhs):
+    instruction = f"""
+        Which of these products is more relevant to the furniture e-commerce search query:
+
+        Query: {query}
+
+        Product Name LHS: {product_lhs['name']}
+        Product Description LHS: {product_lhs['description']}
+        Product Name RHS: {product_rhs['name']}
+        Product Description RHS: {product_rhs['description']}
+
+        Respond with just 'LHS' or 'RHS'
+    """
+    response = generate(instruction)
     return _parse_decision(response)
 
 
@@ -105,7 +132,7 @@ def name_allow_neither(query, product_lhs, product_rhs):
         Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
         with no other text. Respond 'Neither' if not enough evidence.
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return _parse_decision(response)
 
 
@@ -134,7 +161,7 @@ def name_w_desc_allow_neither(query, product_lhs, product_rhs):
         Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
         with no other text. Respond 'Neither' if not enough evidence.
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return _parse_decision(response)
 
 
@@ -162,7 +189,7 @@ def class_allow_neither(query, product_lhs, product_rhs):
         Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
         with no other text. Respond 'Neither' if not enough evidence.
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return _parse_decision(response)
 
 
@@ -190,7 +217,7 @@ def category_allow_neither(query, product_lhs, product_rhs):
         Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
         with no other text. Respond 'Neither' if not enough evidence.
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return _parse_decision(response)
 
 
@@ -215,7 +242,7 @@ def desc_allow_neither(query, product_lhs, product_rhs):
         Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
         with no other text. Respond 'Neither' if not enough evidence.
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return _parse_decision(response)
 
 
@@ -256,6 +283,11 @@ def run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns):
 
 
 def unanimous_ensemble_name(query, product_lhs, product_rhs):
+    decision_fns = [name]
+    return run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns)
+
+
+def unanimous_ensemble_name_neither(query, product_lhs, product_rhs):
     decision_fns = [name_allow_neither]
     return run_unanimous_ensemble(query, product_lhs, product_rhs, decision_fns)
 
@@ -295,7 +327,7 @@ def name_allow_neither2(query, product_lhs, product_rhs):
 
         To play respond with just 'LHS', 'RHS', or 'I dont know' with no other text.
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return _parse_decision(response)
 
 
@@ -313,7 +345,7 @@ def name_cot(query, product_lhs, product_rhs):
         IMPORTANT: On a new line, your last line should just be 'LHS' or 'RHS',
         indicating the most relevant product, with no other text for easier parsing.
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return _parse_decision(response)
 
 
@@ -334,7 +366,7 @@ def name_cot2(query, product_lhs, product_rhs):
         IMPORTANT: On a new line, your last line should just be 'LHS' or 'RHS',
         indicating the most relevant product, with no other text for easier parsing.
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return _parse_decision(response)
 
 
@@ -360,29 +392,34 @@ def all_cot(query, product_lhs, product_rhs):
         Then decide which of these products is more relevant to the query by simply
         placing 'LHS' or 'RHS' on the last line.
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return _parse_decision(response)
 
 
 def enough_information_name(query, product_lhs, product_rhs):
-    instruction = """
-        Is there enough information in the product name to make a decision on which product is more relevant to the query?
+    instruction = f"""
+        Is there enough information in the product name to make a
+        decision on which product is more relevant to the query?
+        Or do they seem equally relevant or not enough information?
 
             Query: {query}
 
             Product Name LHS: {product_lhs['name']}
             Product Name RHS: {product_rhs['name']}
 
-        Respond with just 'Yes' or 'No'
+        Respond with just 'Yes' (one is more relevant) or 'No' (cant tell) and why
     """
-    response = pv.generate(instruction)
+    response = generate(instruction)
     return 'yes' in response.split("\n")[-1].lower()
 
 
-def title_two_stage(query, product_lhs, product_rhs):
-    if not enough_information_name(query, product_lhs, product_rhs):
+def name_two_stage(query, product_lhs, product_rhs):
+    enough_info = (enough_information_name(query, product_lhs, product_rhs) and
+                   enough_information_name(query, product_rhs, product_lhs))
+    if not enough_info:
         return 'Neither'
-    return name(query, product_lhs, product_rhs)
+    choice = name(query, product_lhs, product_rhs)
+    return choice
 
 
 def all_fns():
@@ -393,11 +430,15 @@ def all_fns():
         name_cot2,
         all_cot,
         unanimous_ensemble_name,
+        unanimous_ensemble_name_neither,
         unanimous_ensemble_name_desc,
         unanimous_ensemble_name_w_desc,
         name_allow_neither,
         name_w_desc_allow_neither,
         class_allow_neither,
         category_allow_neither,
-        desc_allow_neither
+        desc_allow_neither,
+        name_two_stage,
+        name_description,
+        describe_and_decide,
     ]
