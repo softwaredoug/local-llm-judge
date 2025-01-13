@@ -12,14 +12,22 @@ The LLM strategies here attempt to recover the pairwise relevance preference of 
 $ poetry install
 ```
 
+Download [WANDS into data folder](https://github.com/wayfair/WANDS/tree/main) 
+
 Get Qwen from Hugging face, convert to MLX format
 ```
 $ mkdir -p ~/.mlx
 $ poetry run mlx_lm.convert --hf-path Qwen/Qwen2.5-7B-Instruct --mlx-path ~/.mlx/Qwen2.5-7B-Instruct/ -q\n
 ```
 
-Run:
+Run local judge
 
 ```
 $ poetry run python -m local_llm_judge.main --verbose --eval-fn name
+```
+
+Optionally - Talk to Qwen
+
+```
+poetry run python -m local_llm_judge.shell
 ```
