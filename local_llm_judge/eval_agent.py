@@ -178,6 +178,22 @@ def name_w_desc_allow_neither(query, product_lhs, product_rhs):
     return _parse_decision(response)
 
 
+def classs(query, product_lhs, product_rhs):
+    instruction = f"""
+        Which of these product classifications (if either) is more relevant to the furniture e-commerce search query:
+
+        Query: {query}
+
+        Product LHS class: {product_lhs['class']}
+        Or
+        Product RHS class: {product_rhs['class']}
+
+        Respond with just 'LHS' or 'RHS'
+    """
+    response = generate(instruction)
+    return _parse_decision(response)
+
+
 def class_allow_neither(query, product_lhs, product_rhs):
     if product_lhs['class'] == product_rhs['class']:
         return 'Neither'
@@ -206,6 +222,22 @@ def class_allow_neither(query, product_lhs, product_rhs):
     return _parse_decision(response)
 
 
+def category(query, product_lhs, product_rhs):
+    instruction = f"""
+        Which of these product categories (if either) is more relevant to the furniture e-commerce search query:
+
+        Query: {query}
+
+        Product LHS category hierarchy: {product_lhs['category_hierarchy']}
+        Or
+        Product RHS category hierarchy: {product_rhs['category_hierarchy']}
+
+        Respond with just 'LHS' or 'RHS'
+    """
+    response = generate(instruction)
+    return _parse_decision(response)
+
+
 def category_allow_neither(query, product_lhs, product_rhs):
     if product_lhs['category_hierarchy'] == product_rhs['category_hierarchy']:
         return 'Neither'
@@ -229,6 +261,22 @@ def category_allow_neither(query, product_lhs, product_rhs):
 
         Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
         with no other text. Respond 'Neither' if not enough evidence.
+    """
+    response = generate(instruction)
+    return _parse_decision(response)
+
+
+def desc(query, product_lhs, product_rhs):
+    instruction = f"""
+        Which of these product descriptions (if either) is more relevant to the furniture e-commerce search query:
+
+        Query: {query}
+
+        Product LHS description: {product_lhs['description']}
+        Or
+        Product RHS description: {product_rhs['description']}
+
+        Respond with just 'LHS' or 'RHS'
     """
     response = generate(instruction)
     return _parse_decision(response)
@@ -435,6 +483,17 @@ def name_two_stage(query, product_lhs, product_rhs):
     return choice
 
 
+def check_both_ways(query, product_lhs, product_rhs, eval_fn):
+    decision1 = eval_fn(query, product_lhs, product_rhs)
+    decision2 = eval_fn(query, product_rhs, product_lhs)
+
+    if decision1 == 'LHS' and decision2 == 'RHS':
+        return 'LHS'
+    elif decision1 == 'RHS' and decision2 == 'LHS':
+        return 'RHS'
+    return 'Neither'
+
+
 def all_fns():
     return [
         name,
@@ -448,8 +507,11 @@ def all_fns():
         unanimous_ensemble_name_w_desc,
         name_allow_neither,
         name_w_desc_allow_neither,
+        classs,
         class_allow_neither,
+        category,
         category_allow_neither,
+        desc,
         desc_allow_neither,
         name_two_stage,
         name_description,

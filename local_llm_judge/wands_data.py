@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def pairwise_df(n):
+def pairwise_df(n, seed=42):
     try:
         products = pd.read_csv('data/WANDS/dataset/product.csv', delimiter='\t')
         queries = pd.read_csv('data/WANDS/dataset/query.csv', delimiter='\t')
@@ -17,12 +17,12 @@ def pairwise_df(n):
     labels = labels.merge(products, how='left', on='product_id')
 
     # Sample n rows
-    labels = labels.sample(10000, random_state=42)
+    labels = labels.sample(10000, random_state=seed)
 
     # Get pairwise
     pairwise = labels.merge(labels, on='query_id')
     # Shuffle completely, otherwise they're somewhat sorted on query
-    pairwise = pairwise.sample(frac=1, random_state=42)
+    pairwise = pairwise.sample(frac=1, random_state=seed)
 
     # Drop same id
     pairwise = pairwise[pairwise['product_id_x'] != pairwise['product_id_y']]

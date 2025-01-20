@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import functools
 
 import pandas as pd
 from prompt_toolkit.history import FileHistory
@@ -12,13 +13,18 @@ from local_llm_judge.wands_data import pairwise_df
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_SEED = 42
+
+
 def parse_args():
     # List all functions in eval_agent
     parser = argparse.ArgumentParser()
     parser.add_argument('--eval-fn', type=str, default='unanimous_ensemble_name_desc')
-    parser.add_argument('--N', type=int, default=250)
+    parser.add_argument('--N', type=int, default=1000)
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--destroy-cache', action='store_true', default=False)
+    parser.add_argument('--check-both-ways', action='store_true', default=False)
     parser.add_argument('--llm-histroy', type=str, default=".llm_shell_history")
     args = parser.parse_args()
     all_fns = eval_agent.all_fns()
@@ -28,6 +34,15 @@ def parse_args():
         logger.info(f"Invalid function name. Available functions: {all_fns}")
         exit(1)
     args.eval_fn = eval_agent.__dict__[args.eval_fn]
+    args.cache_key = args.eval_fn.__name__
+    if args.check_both_ways:
+        cache_key = "both_ways_" + args.eval_fn.__name__
+        args.eval_fn = functools.partial(eval_agent.check_both_ways, eval_fn=args.eval_fn)
+        args.cache_key = cache_key
+
+    if args.seed != 42:
+        args.cache_key += f"_seed_{args.seed}"
+
     if args.verbose:
         enable("local_llm_judge")
         enable(__name__)
@@ -113,17 +128,18 @@ def has_been_labeled(results_df, query, product_lhs, product_rhs):
 def main(eval_fn=eval_agent.unanimous_ensemble_name_desc,
          N=250,
          destroy_cache=False,
-         history_path=".llm_shell_history"):
+         history_path=".llm_shell_history",
+         seed=42):
     if history_path:
         eval_agent.qwen.history = FileHistory(history_path)
 
-    df = pairwise_df(N)
-    func_name = eval_fn.__name__
+    df = pairwise_df(N, seed)
+    cache_key = args.cache_key
     results_df = pd.DataFrame()
-    if destroy_cache and os.path.exists(f'data/{func_name}.pkl'):
-        os.remove(f'data/{func_name}.pkl')
+    if destroy_cache and os.path.exists(f'data/{cache_key}.pkl'):
+        os.remove(f'data/{cache_key}.pkl')
     try:
-        results_df = pd.read_pickle(f'data/{func_name}.pkl')
+        results_df = pd.read_pickle(f'data/{cache_key}.pkl')
     except FileNotFoundError:
         pass
 
@@ -150,10 +166,10 @@ def main(eval_fn=eval_agent.unanimous_ensemble_name_desc,
                                                                      agent_preference)])])
         results_df_stats(results_df)
 
-        results_df.to_pickle(f'data/{func_name}.pkl')
+        results_df.to_pickle(f'data/{cache_key}.pkl')
     results_df_stats(results_df)
 
 
 if __name__ == '__main__':
     args = parse_args()
-    main(args.eval_fn, args.N, args.destroy_cache)
+    main(args.eval_fn, args.N, args.destroy_cache, seed=args.seed)
