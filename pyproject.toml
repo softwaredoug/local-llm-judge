@@ -11,6 +11,7 @@ pandas = "^2.2.3"
 mlx = "^0.22.0"
 mlx-lm = "^0.21.0"
 prompt-toolkit = "^3.0.48"
+scikit-learn = "^1.6.1"
 
 
 [build-system]
