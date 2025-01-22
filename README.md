@@ -31,3 +31,21 @@ Optionally - Talk to Qwen
 ```
 poetry run python -m local_llm_judge.shell
 ```
+
+## Double check or not
+
+You can double check the variants, by asking `--check-both-ways`
+
+$ poetry run python -m local_llm_judge.main --verbose --eval-fn name --check-both-ways
+
+## Letting agent choose neither / say it doesn't know
+
+The variants look at different fields, with a version of prompts that allow the agent to chicken-out and say Neither if it doesn't know. This improves precision, sacrificing coverage/recall.
+
+```
+$ poetry run python -m local_llm_judge.main --verbose --eval-fn name_allow_neither --check-both-ways
+```
+
+## List of variants
+
+There are a lot of prompts / variants listed [in this file](https://github.com/softwaredoug/local-llm-judge/blob/main/local_llm_judge/eval_agent.py#L197). The function names are the arguments to the `eval-fn` argument at command line.
