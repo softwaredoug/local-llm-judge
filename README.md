@@ -3,9 +3,13 @@
 
 (Runs on Apple Silicon only with MLX)
 
-Using the [WANDS dataset](https://github.com/wayfair/WANDS/tree/main), use a local LLM (Qwen 2.5) to try to evaluate pairwise search relevance preferenec.
+Using the [WANDS dataset](https://github.com/wayfair/WANDS/tree/main), use a local LLM (Qwen 2.5) to try to evaluate pairwise search relevance relevance.
 
-The LLM strategies here attempt to recover the pairwise relevance preference of the WANDS human labelers. See [this blog post]()
+The LLM strategies here attempt to recover the pairwise relevance preference of the WANDS human labelers. Blog post series:
+
+* [Turning my laptop into a Search Relevance Judge with local LLMs](https://softwaredoug.com/blog/2025/01/13/llm-for-judgment-lists)
+* [Check twice, cut once with LLM search relevance eval](https://softwaredoug.com/blog/2025/01/19/llm-as-judge-both-ways)
+* [Classic ML to cope with Dumb LLM Judges](https://softwaredoug.com/blog/2025/01/21/llm-judge-decision-tree)
 
 ## To run:
 ```
