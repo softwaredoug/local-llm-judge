@@ -2,6 +2,11 @@
 
 N="${1:-3000}"
 
+poetry run python -m local_llm_judge.main --verbose --eval-fn all_fields --check-both-ways --N $N
+poetry run python -m local_llm_judge.main --verbose --eval-fn all_fields_allow_neither --N $N
+poetry run python -m local_llm_judge.main --verbose --eval-fn all_fields --N $N
+poetry run python -m local_llm_judge.main --verbose --eval-fn all_fields_allow_neither --check-both-ways --N $N
+
 poetry run python -m local_llm_judge.main --verbose --eval-fn category_allow_neither --N $N
 poetry run python -m local_llm_judge.main --verbose --eval-fn category --N $N
 poetry run python -m local_llm_judge.main --verbose --eval-fn category_allow_neither --check-both-ways --N $N

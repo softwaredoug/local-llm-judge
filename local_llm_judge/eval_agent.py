@@ -494,6 +494,58 @@ def check_both_ways(query, product_lhs, product_rhs, eval_fn):
     return 'Neither'
 
 
+def all_fields_allow_neither(query, product_lhs, product_rhs):
+    instruction = f"""
+        Neither product is more relevant to the query, unless given compelling evidence.
+
+        Which of these furniture products (if either) is more relevant to the furniture e-commerce search query:
+
+        Query: {query}
+
+        Product LHS name: {product_lhs['name']}
+        Product LHS description: {product_lhs['description']}
+        Product LHS class: {product_lhs['class']}
+        Product LHS category hierarchy: {product_lhs['category_hierarchy']}
+
+        Product RHS name: {product_rhs['name']}
+        Product RHS description: {product_rhs['description']}
+        Product RHS class: {product_rhs['class']}
+        Product RHS category hierarchy: {product_rhs['category_hierarchy']}
+
+        Neither / Need more product attributes
+
+        Only respond 'LHS' or 'RHS' if you are confident in your decision
+
+        Respond with just 'LHS - I am confident', 'RHS - I am confident', or 'Neither - not confident'
+        with no other text. Respond 'Neither' if not enough evidence.
+    """
+    response = generate(instruction)
+    return _parse_decision(response)
+
+
+def all_fields(query, product_lhs, product_rhs):
+    instruction = f"""
+        Which of these furniture products is more relevant to the furniture e-commerce search query:
+
+        Query: {query}
+
+        Product LHS name: {product_lhs['name']}
+        Product LHS description: {product_lhs['description']}
+        Product LHS class: {product_lhs['class']}
+        Product LHS category hierarchy: {product_lhs['category_hierarchy']}
+
+        Product RHS name: {product_rhs['name']}
+        Product RHS description: {product_rhs['description']}
+        Product RHS class: {product_rhs['class']}
+        Product RHS category hierarchy: {product_rhs['category_hierarchy']}
+
+
+        Respond with just 'LHS' or 'RHS'
+    """
+    response = generate(instruction)
+    return _parse_decision(response)
+
+
 def all_fns():
     return [
         name,
@@ -516,4 +568,6 @@ def all_fns():
         name_two_stage,
         name_description,
         describe_and_decide,
+        all_fields,
+        all_fields_allow_neither
     ]
