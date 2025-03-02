@@ -1,7 +1,8 @@
 import pandas as pd
+import numpy as np
 
 
-def pairwise_df(n, seed=42):
+def _wands_data_merged():
     try:
         products = pd.read_csv('data/WANDS/dataset/product.csv', delimiter='\t')
         queries = pd.read_csv('data/WANDS/dataset/query.csv', delimiter='\t')
@@ -15,6 +16,11 @@ def pairwise_df(n, seed=42):
     labels.loc[labels['label'] == 'Irrelevant', 'grade'] = 0
     labels = labels.merge(queries, how='left', on='query_id')
     labels = labels.merge(products, how='left', on='product_id')
+    return labels
+
+
+def pairwise_df(n, seed=42):
+    labels = _wands_data_merged()
 
     # Sample n rows
     labels = labels.sample(10000, random_state=seed)
@@ -32,3 +38,11 @@ def pairwise_df(n, seed=42):
 
     assert n <= len(pairwise), f"Only {len(pairwise)} rows available"
     return pairwise.head(n)
+
+
+def queries_sample(n=100, seed=420):
+    np.random.seed(seed)
+    labels = _wands_data_merged()
+    queries = labels['query'].unique()
+    queries = np.random.choice(queries, n, replace=False)
+    return labels[labels['query'].isin(queries)]

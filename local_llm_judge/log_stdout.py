@@ -4,9 +4,9 @@ import sys
 
 def enable(module: str, level: int = logging.INFO):
     log = logging.getLogger(module)
-    log.setLevel(logging.DEBUG)
+    log.setLevel(level)
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(level)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     log.addHandler(handler)
