@@ -125,7 +125,7 @@ class InferenceModel:
 
 
 def wands_test_data(n=10):
-    return queries_sample(n=n, seed=420)
+    return queries_sample(num_queries=n, num_docs=10, seed=420)
 
 
 def main():
