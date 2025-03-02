@@ -2,8 +2,11 @@ import argparse
 import pandas as pd
 import numpy as np
 import os
+import pickle
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.tree import export_text
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.model_selection import KFold
 import itertools
 
 
@@ -45,16 +48,14 @@ def parse_args():
     return args
 
 
-def train_tree(train, test, feature_columns):
+def train_tree(train, feature_columns):
     clf = DecisionTreeClassifier()
     clf.fit(train[feature_columns],
             train['human_preference'])
-    score = clf.score(test[feature_columns],
-                      test['human_preference'])
-    return clf, score
+    return clf
 
 
-def predict_tree(clf, test, feature_columns, threshold=0.9):
+def predict(clf, test, feature_columns, threshold=0.9):
     """Only assign LHS or RHS if the probability is above the threshold"""
     probas = clf.predict_proba(test[feature_columns])
     definitely_lhs = probas[:, 0] > threshold
@@ -67,10 +68,13 @@ def predict_tree(clf, test, feature_columns, threshold=0.9):
     same_label_when_pred = (
         test[test['prediction'] != 0]['human_preference'] == test[test['prediction'] != 0]['prediction']
     )
-    print(feature_columns)
-    precision = same_label_when_pred.sum() / len(same_label_when_pred)
-    recall  = len(same_label_when_pred) / len(test)
-    print(f"Precision: {precision} - Recall: {recall}")
+    if len(same_label_when_pred) == 0:
+        precision = 0
+        recall = 0
+    else:
+        precision = same_label_when_pred.sum() / len(same_label_when_pred)
+        recall = len(same_label_when_pred) / len(test)
+    print(f"P: {precision} - R: {recall}")
 
     return predictions, feature_columns, precision, recall
 
@@ -83,22 +87,54 @@ def permute_features(feature_columns):
     return permutations
 
 
-def main():
-    args = parse_args()
-    feature_df, feature_names = build_feature_df(args.feature_names)
+def kfold_trees(feature_names, feature_df):
     results = []
     for permutation in permute_features(feature_names):
         permutation = list(permutation)
-        train = feature_df.tail(len(feature_df) - args.num_test)
-        test = feature_df.head(args.num_test)
-        clf, score = train_tree(train, test, permutation)
-        _, _, precision, recall = predict_tree(clf, test, feature_columns=permutation)
-        results.append({'permutation': permutation, 'precision': precision, 'recall': recall})
-        print(f"Permutation: {permutation} - Score: {score}")
-    results_df = pd.DataFrame(results).sort_values('precision', ascending=False)
+        kf = KFold(n_splits=5)
+        precisions = []
+        recalls = []
+        for train_index, test_index in kf.split(feature_df):
+            # Use kf to define test/train splits
+            train = feature_df.iloc[train_index]
+            test = feature_df.iloc[test_index]
+            clf = train_tree(train, permutation)
+            model_name = "_".join(permutation)
+            _, _, precision, recall = predict(clf, test, feature_columns=permutation)
+            precisions.append(precision)
+            recalls.append(recall)
+        if np.sum(recalls) != 0:
+            full_trained = train_tree(feature_df, permutation)
+            model_path = f"data/model/model_{model_name}.pkl"
+            with open(model_path, 'wb') as f:
+                pickle.dump(full_trained, f)
+            results.append({'permutation': permutation, 'precisions': precisions, 'recalls': recalls,
+                            'model_path': model_path})
+            prec_mean = np.mean(precisions)
+            rec_mean = np.mean(recalls)
+            print(f"Permutation: {permutation} - P: {prec_mean} - R: {rec_mean}")
+        # print(f"Permutation: {permutation} - Score: {score}")
+    return results
+
+
+def main():
+    args = parse_args()
+    feature_df, feature_names = build_feature_df(args.feature_names)
+    print(f"Using {len(feature_df)} samples")
+    results_trees = kfold_trees(feature_names, feature_df)
+    results_df = pd.DataFrame(results_trees)
+
+    results_df['recall_mean'] = results_df['recalls'].apply(np.mean)
+    results_df['recall_var'] = results_df['recalls'].apply(np.var)
+    results_df['precision_mean'] = results_df['precisions'].apply(np.mean)
+    results_df['precision_var'] = results_df['precisions'].apply(np.var)
+
+    results_df.sort_values('precision_mean', ascending=False, inplace=True)
+
     for _, row in results_df.head(10).iterrows():
-        print(row['permutation'], row['precision'], row['recall'])
-    # print(export_text(clf, feature_names=feature_names))
+        msg = f"M: {row['model_path']} stats: P: {row['precision_mean']:.2f} (var:{row['precision_var']:.2f})"
+        msg += f"R: {row['recall_mean']:.2f} (var:{row['recall_var']})"
+        print(msg)
 
 
 if __name__ == "__main__":
